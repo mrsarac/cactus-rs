@@ -136,10 +136,11 @@ impl Model {
             )
         };
 
-        if result != 0 {
+        // result > 0 means bytes written (success), result < 0 means error
+        if result < 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or_else(|| Error::Inference(format!("cactus_complete returned {}", result))));
+                .unwrap_or_else(|| Error::Inference(format!("cactus_complete failed with code {}", result))));
         }
 
         // Parse response from buffer
@@ -243,10 +244,11 @@ impl Model {
             )
         };
 
-        if result != 0 && !callback_data.should_stop {
+        // result > 0 means bytes written (success), result < 0 means error
+        if result < 0 && !callback_data.should_stop {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or_else(|| Error::Inference(format!("cactus_complete returned {}", result))));
+                .unwrap_or_else(|| Error::Inference(format!("cactus_complete failed with code {}", result))));
         }
 
         let response_str = unsafe {
