@@ -172,6 +172,83 @@ pub struct Embedding {
     pub dimension: usize,
 }
 
+/// A document stored in the vector index
+#[derive(Debug, Clone)]
+pub struct Document {
+    /// Unique identifier
+    pub id: i32,
+    /// Document content
+    pub content: String,
+    /// Optional metadata (JSON string)
+    pub metadata: Option<String>,
+    /// Optional pre-computed embedding
+    pub embedding: Option<Vec<f32>>,
+}
+
+impl Document {
+    /// Create a new document with content
+    pub fn new(id: i32, content: impl Into<String>) -> Self {
+        Self {
+            id,
+            content: content.into(),
+            metadata: None,
+            embedding: None,
+        }
+    }
+
+    /// Add metadata to the document
+    pub fn with_metadata(mut self, metadata: impl Into<String>) -> Self {
+        self.metadata = Some(metadata.into());
+        self
+    }
+
+    /// Add pre-computed embedding
+    pub fn with_embedding(mut self, embedding: Vec<f32>) -> Self {
+        self.embedding = Some(embedding);
+        self
+    }
+}
+
+/// Query options for vector search
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryOptions {
+    /// Number of results to return
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<usize>,
+
+    /// Minimum similarity threshold
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_score: Option<f32>,
+
+    /// Include embeddings in results
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub include_embeddings: Option<bool>,
+
+    /// Include metadata in results
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub include_metadata: Option<bool>,
+}
+
+impl Default for QueryOptions {
+    fn default() -> Self {
+        Self {
+            top_k: Some(10),
+            min_score: None,
+            include_embeddings: Some(false),
+            include_metadata: Some(true),
+        }
+    }
+}
+
+/// A search result from vector query
+#[derive(Debug, Clone)]
+pub struct SearchResult {
+    /// Document ID
+    pub id: i32,
+    /// Similarity score (higher is better)
+    pub score: f32,
+}
+
 /// Model configuration
 #[derive(Debug, Clone)]
 pub struct ModelConfig {

@@ -48,6 +48,10 @@ pub enum Error {
     /// Feature not supported
     #[error("Feature not supported: {0}")]
     Unsupported(String),
+
+    /// Vector index error
+    #[error("Index error: {0}")]
+    Index(String),
 }
 
 impl Error {
