@@ -73,3 +73,97 @@ impl Error {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+
+    #[test]
+    fn test_error_display_model_load() {
+        let err = Error::ModelLoad("file not found".into());
+        assert_eq!(err.to_string(), "Failed to load model: file not found");
+    }
+
+    #[test]
+    fn test_error_display_model_init() {
+        let err = Error::ModelInit("invalid format".into());
+        assert_eq!(err.to_string(), "Failed to initialize model: invalid format");
+    }
+
+    #[test]
+    fn test_error_display_inference() {
+        let err = Error::Inference("out of memory".into());
+        assert_eq!(err.to_string(), "Inference failed: out of memory");
+    }
+
+    #[test]
+    fn test_error_display_invalid_input() {
+        let err = Error::InvalidInput("empty message".into());
+        assert_eq!(err.to_string(), "Invalid input: empty message");
+    }
+
+    #[test]
+    fn test_error_display_null_pointer() {
+        let err = Error::NullPointer;
+        assert_eq!(err.to_string(), "Null pointer returned from Cactus FFI");
+    }
+
+    #[test]
+    fn test_error_display_stopped() {
+        let err = Error::Stopped;
+        assert_eq!(err.to_string(), "Generation was stopped");
+    }
+
+    #[test]
+    fn test_error_display_unsupported() {
+        let err = Error::Unsupported("GPU not available".into());
+        assert_eq!(err.to_string(), "Feature not supported: GPU not available");
+    }
+
+    #[test]
+    fn test_error_display_index() {
+        let err = Error::Index("index corrupted".into());
+        assert_eq!(err.to_string(), "Index error: index corrupted");
+    }
+
+    #[test]
+    fn test_error_display_cactus() {
+        let err = Error::Cactus("internal error".into());
+        assert_eq!(err.to_string(), "Cactus error: internal error");
+    }
+
+    #[test]
+    fn test_error_from_json() {
+        let json_err = serde_json::from_str::<i32>("not a number").unwrap_err();
+        let err: Error = json_err.into();
+        assert!(matches!(err, Error::Json(_)));
+    }
+
+    #[test]
+    fn test_error_from_nul() {
+        let nul_err = CString::new("hello\0world").unwrap_err();
+        let err: Error = nul_err.into();
+        assert!(matches!(err, Error::NulError(_)));
+    }
+
+    #[test]
+    fn test_result_type_ok() {
+        let result: Result<i32> = Ok(42);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 42);
+    }
+
+    #[test]
+    fn test_result_type_err() {
+        let result: Result<i32> = Err(Error::NullPointer);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_error_debug_format() {
+        let err = Error::ModelLoad("test".into());
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("ModelLoad"));
+    }
+}
