@@ -475,16 +475,14 @@ mod tests {
 
     #[test]
     fn test_document_with_metadata() {
-        let doc = Document::new(1, "Test")
-            .with_metadata(r#"{"category": "test"}"#);
+        let doc = Document::new(1, "Test").with_metadata(r#"{"category": "test"}"#);
         assert_eq!(doc.metadata.as_ref().unwrap(), r#"{"category": "test"}"#);
     }
 
     #[test]
     fn test_document_with_embedding() {
         let embedding = vec![0.1, 0.2, 0.3];
-        let doc = Document::new(1, "Test")
-            .with_embedding(embedding.clone());
+        let doc = Document::new(1, "Test").with_embedding(embedding.clone());
         assert_eq!(doc.embedding.as_ref().unwrap(), &embedding);
     }
 
@@ -547,8 +545,7 @@ mod tests {
 
     #[test]
     fn test_transcribe_options_with_prompt() {
-        let opts = TranscribeOptions::default()
-            .with_prompt("Meeting notes:");
+        let opts = TranscribeOptions::default().with_prompt("Meeting notes:");
         assert_eq!(opts.initial_prompt, Some("Meeting notes:".to_string()));
     }
 
@@ -576,22 +573,19 @@ mod tests {
 
     #[test]
     fn test_model_config_with_context_size() {
-        let config = ModelConfig::new("model")
-            .with_context_size(4096);
+        let config = ModelConfig::new("model").with_context_size(4096);
         assert_eq!(config.context_size, 4096);
     }
 
     #[test]
     fn test_model_config_with_gpu() {
-        let config = ModelConfig::new("model")
-            .with_gpu(false);
+        let config = ModelConfig::new("model").with_gpu(false);
         assert!(!config.use_gpu);
     }
 
     #[test]
     fn test_model_config_with_threads() {
-        let config = ModelConfig::new("model")
-            .with_threads(8);
+        let config = ModelConfig::new("model").with_threads(8);
         assert_eq!(config.threads, Some(8));
     }
 
@@ -679,7 +673,10 @@ mod tests {
     fn test_role_serialization() {
         assert_eq!(serde_json::to_string(&Role::System).unwrap(), "\"system\"");
         assert_eq!(serde_json::to_string(&Role::User).unwrap(), "\"user\"");
-        assert_eq!(serde_json::to_string(&Role::Assistant).unwrap(), "\"assistant\"");
+        assert_eq!(
+            serde_json::to_string(&Role::Assistant).unwrap(),
+            "\"assistant\""
+        );
         assert_eq!(serde_json::to_string(&Role::Tool).unwrap(), "\"tool\"");
     }
 

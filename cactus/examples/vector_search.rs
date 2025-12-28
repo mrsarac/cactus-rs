@@ -29,18 +29,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Sample knowledge base
     let knowledge_base = [
-        (1, "Rust is a systems programming language focused on safety and performance."),
-        (2, "Python is great for data science and machine learning applications."),
-        (3, "JavaScript runs in web browsers and powers interactive websites."),
-        (4, "Go is designed for building scalable network services and cloud infrastructure."),
+        (
+            1,
+            "Rust is a systems programming language focused on safety and performance.",
+        ),
+        (
+            2,
+            "Python is great for data science and machine learning applications.",
+        ),
+        (
+            3,
+            "JavaScript runs in web browsers and powers interactive websites.",
+        ),
+        (
+            4,
+            "Go is designed for building scalable network services and cloud infrastructure.",
+        ),
         (5, "The quick brown fox jumps over the lazy dog."),
-        (6, "Machine learning models can be deployed on mobile devices for edge inference."),
-        (7, "Vector databases enable semantic search using embedding similarity."),
-        (8, "Neural networks are inspired by biological brain structures."),
+        (
+            6,
+            "Machine learning models can be deployed on mobile devices for edge inference.",
+        ),
+        (
+            7,
+            "Vector databases enable semantic search using embedding similarity.",
+        ),
+        (
+            8,
+            "Neural networks are inspired by biological brain structures.",
+        ),
     ];
 
     // Generate embeddings
-    println!("🧮 Generating embeddings for {} documents...", knowledge_base.len());
+    println!(
+        "🧮 Generating embeddings for {} documents...",
+        knowledge_base.len()
+    );
     let mut documents = Vec::new();
     let mut embedding_dim = 0;
 
@@ -108,12 +132,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .map(|(_, content)| *content)
                 .unwrap_or("Unknown");
 
-            println!(
-                "  {}. [Score: {:.3}] {}",
-                rank + 1,
-                result.score,
-                doc
-            );
+            println!("  {}. [Score: {:.3}] {}", rank + 1, result.score, doc);
         }
     }
 

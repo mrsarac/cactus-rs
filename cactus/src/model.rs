@@ -1,7 +1,10 @@
 //! Model management and inference
 
 use crate::error::{Error, Result};
-use crate::types::{Embedding, GenerateOptions, GenerateResponse, Message, ModelConfig, TranscribeOptions, TranscribeResponse};
+use crate::types::{
+    Embedding, GenerateOptions, GenerateResponse, Message, ModelConfig, TranscribeOptions,
+    TranscribeResponse,
+};
 use std::ffi::{CStr, CString};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -114,7 +117,11 @@ impl Model {
     /// ];
     /// let response = model.complete(&messages, GenerateOptions::default())?;
     /// ```
-    pub fn complete(&self, messages: &[Message], options: GenerateOptions) -> Result<GenerateResponse> {
+    pub fn complete(
+        &self,
+        messages: &[Message],
+        options: GenerateOptions,
+    ) -> Result<GenerateResponse> {
         let messages_json = serde_json::to_string(messages)?;
         let options_json = serde_json::to_string(&options)?;
 
@@ -133,8 +140,8 @@ impl Model {
                 response_buffer.as_mut_ptr() as *mut i8,
                 response_buffer.len(),
                 options_c.as_ptr(),
-                std::ptr::null(), // tools_json
-                None,             // callback
+                std::ptr::null(),     // tools_json
+                None,                 // callback
                 std::ptr::null_mut(), // user_data
             )
         };
@@ -143,7 +150,9 @@ impl Model {
         if result < 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or_else(|| Error::Inference(format!("cactus_complete failed with code {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Inference(format!("cactus_complete failed with code {}", result))
+                }));
         }
 
         // Parse response from buffer
@@ -153,8 +162,8 @@ impl Model {
         };
 
         // Try to parse as JSON, otherwise return raw content
-        let response: GenerateResponse = serde_json::from_str(&response_str)
-            .unwrap_or_else(|_| GenerateResponse {
+        let response: GenerateResponse =
+            serde_json::from_str(&response_str).unwrap_or_else(|_| GenerateResponse {
                 content: response_str,
                 prompt_tokens: 0,
                 completion_tokens: 0,
@@ -251,7 +260,9 @@ impl Model {
         if result < 0 && !callback_data.should_stop {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or_else(|| Error::Inference(format!("cactus_complete failed with code {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Inference(format!("cactus_complete failed with code {}", result))
+                }));
         }
 
         let response_str = unsafe {
@@ -259,8 +270,8 @@ impl Model {
             c_str.to_string_lossy().into_owned()
         };
 
-        let response: GenerateResponse = serde_json::from_str(&response_str)
-            .unwrap_or_else(|_| GenerateResponse {
+        let response: GenerateResponse =
+            serde_json::from_str(&response_str).unwrap_or_else(|_| GenerateResponse {
                 content: response_str,
                 prompt_tokens: 0,
                 completion_tokens: 0,
@@ -306,7 +317,9 @@ impl Model {
         if result < 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or_else(|| Error::Inference(format!("cactus_embed failed with code {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Inference(format!("cactus_embed failed with code {}", result))
+                }));
         }
 
         // Truncate to actual dimension
@@ -348,7 +361,9 @@ impl Model {
         if result < 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or_else(|| Error::Inference(format!("cactus_image_embed failed with code {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Inference(format!("cactus_image_embed failed with code {}", result))
+                }));
         }
 
         embeddings_buffer.truncate(embedding_dim);
@@ -389,7 +404,9 @@ impl Model {
         if result < 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or_else(|| Error::Inference(format!("cactus_audio_embed failed with code {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Inference(format!("cactus_audio_embed failed with code {}", result))
+                }));
         }
 
         embeddings_buffer.truncate(embedding_dim);
@@ -438,17 +455,19 @@ impl Model {
                 response_buffer.as_mut_ptr() as *mut i8,
                 response_buffer.len(),
                 options_c.as_ptr(),
-                None,             // callback
+                None,                 // callback
                 std::ptr::null_mut(), // user_data
-                std::ptr::null(),  // pcm_buffer (not using raw PCM)
-                0,                 // pcm_buffer_size
+                std::ptr::null(),     // pcm_buffer (not using raw PCM)
+                0,                    // pcm_buffer_size
             )
         };
 
         if result < 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or_else(|| Error::Inference(format!("cactus_transcribe failed with code {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Inference(format!("cactus_transcribe failed with code {}", result))
+                }));
         }
 
         let response_str = unsafe {
@@ -457,8 +476,8 @@ impl Model {
         };
 
         // Try to parse as JSON, otherwise return raw text
-        let response: TranscribeResponse = serde_json::from_str(&response_str)
-            .unwrap_or_else(|_| TranscribeResponse {
+        let response: TranscribeResponse =
+            serde_json::from_str(&response_str).unwrap_or_else(|_| TranscribeResponse {
                 text: response_str,
                 language: String::new(),
                 duration: 0.0,
@@ -545,7 +564,9 @@ impl Model {
         if result < 0 && !callback_data.should_stop {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or_else(|| Error::Inference(format!("cactus_transcribe failed with code {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Inference(format!("cactus_transcribe failed with code {}", result))
+                }));
         }
 
         let response_str = unsafe {
@@ -553,8 +574,8 @@ impl Model {
             c_str.to_string_lossy().into_owned()
         };
 
-        let response: TranscribeResponse = serde_json::from_str(&response_str)
-            .unwrap_or_else(|_| TranscribeResponse {
+        let response: TranscribeResponse =
+            serde_json::from_str(&response_str).unwrap_or_else(|_| TranscribeResponse {
                 text: response_str,
                 language: String::new(),
                 duration: 0.0,
@@ -586,7 +607,7 @@ impl Model {
         let result = unsafe {
             cactus_sys::cactus_transcribe(
                 self.handle.as_ptr(),
-                std::ptr::null(),  // no file path
+                std::ptr::null(), // no file path
                 prompt_c.as_ptr(),
                 response_buffer.as_mut_ptr() as *mut i8,
                 response_buffer.len(),
@@ -601,7 +622,9 @@ impl Model {
         if result < 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or_else(|| Error::Inference(format!("cactus_transcribe failed with code {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Inference(format!("cactus_transcribe failed with code {}", result))
+                }));
         }
 
         let response_str = unsafe {
@@ -609,8 +632,8 @@ impl Model {
             c_str.to_string_lossy().into_owned()
         };
 
-        let response: TranscribeResponse = serde_json::from_str(&response_str)
-            .unwrap_or_else(|_| TranscribeResponse {
+        let response: TranscribeResponse =
+            serde_json::from_str(&response_str).unwrap_or_else(|_| TranscribeResponse {
                 text: response_str,
                 language: String::new(),
                 duration: 0.0,

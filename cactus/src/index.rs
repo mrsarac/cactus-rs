@@ -47,9 +47,7 @@ impl VectorIndex {
         let dir = index_dir.into();
         let dir_c = CString::new(dir.as_str())?;
 
-        let handle = unsafe {
-            cactus_sys::cactus_index_init(dir_c.as_ptr(), embedding_dim)
-        };
+        let handle = unsafe { cactus_sys::cactus_index_init(dir_c.as_ptr(), embedding_dim) };
 
         let handle = NonNull::new(handle).ok_or_else(|| {
             Error::last_cactus_error()
@@ -145,17 +143,15 @@ impl VectorIndex {
         }
 
         let result = unsafe {
-            cactus_sys::cactus_index_delete(
-                self.handle.as_ptr(),
-                ids.as_ptr(),
-                ids.len(),
-            )
+            cactus_sys::cactus_index_delete(self.handle.as_ptr(), ids.as_ptr(), ids.len())
         };
 
         if result < 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Index)
-                .unwrap_or_else(|| Error::Index(format!("cactus_index_delete failed: {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Index(format!("cactus_index_delete failed: {}", result))
+                }));
         }
 
         Ok(())
@@ -214,7 +210,9 @@ impl VectorIndex {
         if result < 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Index)
-                .unwrap_or_else(|| Error::Index(format!("cactus_index_query failed: {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Index(format!("cactus_index_query failed: {}", result))
+                }));
         }
 
         // Build results
@@ -232,14 +230,14 @@ impl VectorIndex {
 
     /// Compact the index to optimize storage and search performance
     pub fn compact(&self) -> Result<()> {
-        let result = unsafe {
-            cactus_sys::cactus_index_compact(self.handle.as_ptr())
-        };
+        let result = unsafe { cactus_sys::cactus_index_compact(self.handle.as_ptr()) };
 
         if result < 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Index)
-                .unwrap_or_else(|| Error::Index(format!("cactus_index_compact failed: {}", result))));
+                .unwrap_or_else(|| {
+                    Error::Index(format!("cactus_index_compact failed: {}", result))
+                }));
         }
 
         Ok(())

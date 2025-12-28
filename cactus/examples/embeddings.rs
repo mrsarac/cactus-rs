@@ -19,7 +19,10 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
-    let model_path = args.get(1).map(|s| s.as_str()).unwrap_or("models/embedding-model");
+    let model_path = args
+        .get(1)
+        .map(|s| s.as_str())
+        .unwrap_or("models/embedding-model");
 
     println!("🌵 Cactus Rust Bindings - Embeddings Example");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -44,7 +47,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut embeddings = Vec::new();
     for text in &texts {
         let emb = model.embed(text, true)?; // normalized
-        println!("  ✓ \"{}...\" → {} dimensions", &text[..30.min(text.len())], emb.dimension);
+        println!(
+            "  ✓ \"{}...\" → {} dimensions",
+            &text[..30.min(text.len())],
+            emb.dimension
+        );
         embeddings.push(emb);
     }
 

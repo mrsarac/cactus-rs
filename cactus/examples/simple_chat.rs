@@ -9,7 +9,10 @@ use std::io::{self, Write};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get model path from args
     let args: Vec<String> = env::args().collect();
-    let model_path = args.get(1).map(|s| s.as_str()).unwrap_or("models/gemma-2-2b-it-Q4_K_M.gguf");
+    let model_path = args
+        .get(1)
+        .map(|s| s.as_str())
+        .unwrap_or("models/gemma-2-2b-it-Q4_K_M.gguf");
 
     println!("🌵 Cactus Rust Bindings - Simple Chat Example");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

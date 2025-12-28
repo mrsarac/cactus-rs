@@ -88,7 +88,10 @@ mod tests {
     #[test]
     fn test_error_display_model_init() {
         let err = Error::ModelInit("invalid format".into());
-        assert_eq!(err.to_string(), "Failed to initialize model: invalid format");
+        assert_eq!(
+            err.to_string(),
+            "Failed to initialize model: invalid format"
+        );
     }
 
     #[test]
