@@ -7,6 +7,9 @@ use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+/// Default response buffer size (64KB)
+const DEFAULT_BUFFER_SIZE: usize = 64 * 1024;
+
 /// A Cactus model for on-device AI inference
 ///
 /// This is the main entry point for using Cactus. It wraps the underlying
@@ -74,8 +77,8 @@ impl Model {
         let handle = unsafe {
             cactus_sys::cactus_init(
                 path.as_ptr(),
-                config.context_size as i32,
-                std::ptr::null(), // corpus (optional)
+                config.context_size as usize,
+                std::ptr::null(), // corpus_dir (optional)
             )
         };
 
@@ -117,31 +120,35 @@ impl Model {
 
         self.stop_flag.store(false, Ordering::SeqCst);
 
-        let response_ptr = unsafe {
+        // Allocate response buffer
+        let mut response_buffer: Vec<u8> = vec![0u8; DEFAULT_BUFFER_SIZE];
+
+        let result = unsafe {
             cactus_sys::cactus_complete(
                 self.handle.as_ptr(),
                 messages_c.as_ptr(),
+                response_buffer.as_mut_ptr() as *mut i8,
+                response_buffer.len(),
                 options_c.as_ptr(),
-                std::ptr::null(), // tools
+                std::ptr::null(), // tools_json
                 None,             // callback
+                std::ptr::null_mut(), // user_data
             )
         };
 
-        if response_ptr.is_null() {
+        if result != 0 {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or(Error::NullPointer));
+                .unwrap_or_else(|| Error::Inference(format!("cactus_complete returned {}", result))));
         }
 
+        // Parse response from buffer
         let response_str = unsafe {
-            let c_str = CStr::from_ptr(response_ptr);
-            let s = c_str.to_string_lossy().into_owned();
-            // Note: Cactus may require us to free this string
-            // libc::free(response_ptr as *mut _);
-            s
+            let c_str = CStr::from_ptr(response_buffer.as_ptr() as *const i8);
+            c_str.to_string_lossy().into_owned()
         };
 
-        // Parse response JSON
+        // Try to parse as JSON, otherwise return raw content
         let response: GenerateResponse = serde_json::from_str(&response_str)
             .unwrap_or_else(|_| GenerateResponse {
                 content: response_str,
@@ -182,7 +189,7 @@ impl Model {
         mut callback: F,
     ) -> Result<GenerateResponse>
     where
-        F: FnMut(&str) -> bool,
+        F: FnMut(&str, u32) -> bool,
     {
         let messages_json = serde_json::to_string(messages)?;
         let options_json = serde_json::to_string(&options)?;
@@ -192,44 +199,58 @@ impl Model {
 
         self.stop_flag.store(false, Ordering::SeqCst);
 
-        // Create trampoline for callback
-        let mut callback_wrapper = CallbackWrapper { callback: &mut callback };
-        let callback_ptr = &mut callback_wrapper as *mut CallbackWrapper<F> as *mut std::ffi::c_void;
+        // Create callback wrapper
+        struct CallbackData<'a, F: FnMut(&str, u32) -> bool> {
+            callback: &'a mut F,
+            should_stop: bool,
+        }
 
-        extern "C" fn trampoline<F: FnMut(&str) -> bool>(
+        let mut callback_data = CallbackData {
+            callback: &mut callback,
+            should_stop: false,
+        };
+
+        // Trampoline function
+        unsafe extern "C" fn trampoline<F: FnMut(&str, u32) -> bool>(
             token: *const std::ffi::c_char,
+            token_id: u32,
             user_data: *mut std::ffi::c_void,
-        ) -> bool {
-            unsafe {
-                if token.is_null() || user_data.is_null() {
-                    return false;
-                }
-                let wrapper = &mut *(user_data as *mut CallbackWrapper<F>);
-                let token_str = CStr::from_ptr(token).to_string_lossy();
-                (wrapper.callback)(&token_str)
+        ) {
+            if token.is_null() || user_data.is_null() {
+                return;
+            }
+            let data = &mut *(user_data as *mut CallbackData<F>);
+            let token_str = CStr::from_ptr(token).to_string_lossy();
+            let should_continue = (data.callback)(&token_str, token_id);
+            if !should_continue {
+                data.should_stop = true;
             }
         }
 
-        // Note: This is a simplified version. The actual FFI callback signature
-        // may need adjustment based on cactus_ffi.h
-        let response_ptr = unsafe {
+        // Allocate response buffer
+        let mut response_buffer: Vec<u8> = vec![0u8; DEFAULT_BUFFER_SIZE];
+
+        let result = unsafe {
             cactus_sys::cactus_complete(
                 self.handle.as_ptr(),
                 messages_c.as_ptr(),
+                response_buffer.as_mut_ptr() as *mut i8,
+                response_buffer.len(),
                 options_c.as_ptr(),
                 std::ptr::null(),
-                Some(std::mem::transmute(trampoline::<F> as *const ())),
+                Some(trampoline::<F>),
+                &mut callback_data as *mut CallbackData<F> as *mut std::ffi::c_void,
             )
         };
 
-        if response_ptr.is_null() {
+        if result != 0 && !callback_data.should_stop {
             return Err(Error::last_cactus_error()
                 .map(Error::Inference)
-                .unwrap_or(Error::NullPointer));
+                .unwrap_or_else(|| Error::Inference(format!("cactus_complete returned {}", result))));
         }
 
         let response_str = unsafe {
-            let c_str = CStr::from_ptr(response_ptr);
+            let c_str = CStr::from_ptr(response_buffer.as_ptr() as *const i8);
             c_str.to_string_lossy().into_owned()
         };
 
@@ -240,7 +261,7 @@ impl Model {
                 completion_tokens: 0,
                 time_to_first_token_ms: 0.0,
                 tokens_per_second: 0.0,
-                stopped: self.stop_flag.load(Ordering::SeqCst),
+                stopped: callback_data.should_stop,
             });
 
         Ok(response)
@@ -273,9 +294,4 @@ impl Drop for Model {
             cactus_sys::cactus_destroy(self.handle.as_ptr());
         }
     }
-}
-
-/// Helper struct for callback trampolining
-struct CallbackWrapper<'a, F: FnMut(&str) -> bool> {
-    callback: &'a mut F,
 }
