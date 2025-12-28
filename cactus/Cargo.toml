@@ -1,0 +1,25 @@
+[package]
+name = "cactus"
+description = "Safe Rust bindings for Cactus on-device AI engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords = ["ai", "llm", "inference", "on-device", "machine-learning"]
+categories = ["api-bindings", "science", "asynchronous"]
+readme = "../README.md"
+
+[dependencies]
+cactus-sys = { path = "../cactus-sys" }
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+
+[features]
+default = ["metal"]
+metal = ["cactus-sys/metal"]
+vulkan = ["cactus-sys/vulkan"]

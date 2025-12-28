@@ -1,0 +1,26 @@
+[package]
+name = "cactus-sys"
+description = "Low-level FFI bindings for Cactus on-device AI engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords = ["ai", "llm", "ffi", "bindings", "cactus"]
+categories = ["external-ffi-bindings"]
+links = "cactus"
+build = "build.rs"
+
+[dependencies]
+libc = "0.2"
+
+[build-dependencies]
+bindgen = "0.70"
+cmake = "0.1"
+pkg-config = "0.3"
+
+[features]
+default = ["metal"]
+metal = []      # macOS/iOS GPU acceleration
+vulkan = []     # Android GPU acceleration
+cuda = []       # NVIDIA GPU (future)
