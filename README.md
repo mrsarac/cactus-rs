@@ -405,7 +405,6 @@ for handle in handles {
 ## Related Projects
 
 - [Cactus](https://github.com/cactus-compute/cactus) - The original C++ inference engine
-- [AYAS](https://github.com/mrsarac/ayas) - Terminal knowledge visualizer using cactus-rs
 - [llama-cpp-rs](https://github.com/mdrokz/rust-llama.cpp) - Alternative Rust LLM bindings
 
 ## Contributing
