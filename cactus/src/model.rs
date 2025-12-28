@@ -1,7 +1,7 @@
 //! Model management and inference
 
 use crate::error::{Error, Result};
-use crate::types::{GenerateOptions, GenerateResponse, Message, ModelConfig};
+use crate::types::{Embedding, GenerateOptions, GenerateResponse, Message, ModelConfig};
 use std::ffi::{CStr, CString};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -9,6 +9,9 @@ use std::sync::Arc;
 
 /// Default response buffer size (64KB)
 const DEFAULT_BUFFER_SIZE: usize = 64 * 1024;
+
+/// Default embedding buffer size (16K floats = 64KB, supports up to 16K dimensions)
+const DEFAULT_EMBEDDING_SIZE: usize = 16 * 1024;
 
 /// A Cactus model for on-device AI inference
 ///
@@ -267,6 +270,134 @@ impl Model {
             });
 
         Ok(response)
+    }
+
+    /// Generate embeddings for text
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - Text to embed
+    /// * `normalize` - Whether to L2-normalize the embedding vector
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let embedding = model.embed("Hello, world!", true)?;
+    /// println!("Dimension: {}", embedding.dimension);
+    /// println!("Vector: {:?}", &embedding.vector[..5]);
+    /// ```
+    pub fn embed(&self, text: &str, normalize: bool) -> Result<Embedding> {
+        let text_c = CString::new(text)?;
+
+        let mut embeddings_buffer: Vec<f32> = vec![0.0; DEFAULT_EMBEDDING_SIZE];
+        let mut embedding_dim: usize = 0;
+
+        let result = unsafe {
+            cactus_sys::cactus_embed(
+                self.handle.as_ptr(),
+                text_c.as_ptr(),
+                embeddings_buffer.as_mut_ptr(),
+                embeddings_buffer.len(),
+                &mut embedding_dim,
+                normalize,
+            )
+        };
+
+        if result < 0 {
+            return Err(Error::last_cactus_error()
+                .map(Error::Inference)
+                .unwrap_or_else(|| Error::Inference(format!("cactus_embed failed with code {}", result))));
+        }
+
+        // Truncate to actual dimension
+        embeddings_buffer.truncate(embedding_dim);
+
+        Ok(Embedding {
+            vector: embeddings_buffer,
+            dimension: embedding_dim,
+        })
+    }
+
+    /// Generate embeddings for an image file
+    ///
+    /// # Arguments
+    ///
+    /// * `image_path` - Path to the image file
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let embedding = model.embed_image("photo.jpg")?;
+    /// ```
+    pub fn embed_image(&self, image_path: &str) -> Result<Embedding> {
+        let path_c = CString::new(image_path)?;
+
+        let mut embeddings_buffer: Vec<f32> = vec![0.0; DEFAULT_EMBEDDING_SIZE];
+        let mut embedding_dim: usize = 0;
+
+        let result = unsafe {
+            cactus_sys::cactus_image_embed(
+                self.handle.as_ptr(),
+                path_c.as_ptr(),
+                embeddings_buffer.as_mut_ptr(),
+                embeddings_buffer.len(),
+                &mut embedding_dim,
+            )
+        };
+
+        if result < 0 {
+            return Err(Error::last_cactus_error()
+                .map(Error::Inference)
+                .unwrap_or_else(|| Error::Inference(format!("cactus_image_embed failed with code {}", result))));
+        }
+
+        embeddings_buffer.truncate(embedding_dim);
+
+        Ok(Embedding {
+            vector: embeddings_buffer,
+            dimension: embedding_dim,
+        })
+    }
+
+    /// Generate embeddings for an audio file
+    ///
+    /// # Arguments
+    ///
+    /// * `audio_path` - Path to the audio file
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let embedding = model.embed_audio("speech.wav")?;
+    /// ```
+    pub fn embed_audio(&self, audio_path: &str) -> Result<Embedding> {
+        let path_c = CString::new(audio_path)?;
+
+        let mut embeddings_buffer: Vec<f32> = vec![0.0; DEFAULT_EMBEDDING_SIZE];
+        let mut embedding_dim: usize = 0;
+
+        let result = unsafe {
+            cactus_sys::cactus_audio_embed(
+                self.handle.as_ptr(),
+                path_c.as_ptr(),
+                embeddings_buffer.as_mut_ptr(),
+                embeddings_buffer.len(),
+                &mut embedding_dim,
+            )
+        };
+
+        if result < 0 {
+            return Err(Error::last_cactus_error()
+                .map(Error::Inference)
+                .unwrap_or_else(|| Error::Inference(format!("cactus_audio_embed failed with code {}", result))));
+        }
+
+        embeddings_buffer.truncate(embedding_dim);
+
+        Ok(Embedding {
+            vector: embeddings_buffer,
+            dimension: embedding_dim,
+        })
     }
 
     /// Stop any ongoing generation
