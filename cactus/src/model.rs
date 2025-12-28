@@ -1,7 +1,7 @@
 //! Model management and inference
 
 use crate::error::{Error, Result};
-use crate::types::{Embedding, GenerateOptions, GenerateResponse, Message, ModelConfig};
+use crate::types::{Embedding, GenerateOptions, GenerateResponse, Message, ModelConfig, TranscribeOptions, TranscribeResponse};
 use std::ffi::{CStr, CString};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -398,6 +398,226 @@ impl Model {
             vector: embeddings_buffer,
             dimension: embedding_dim,
         })
+    }
+
+    /// Transcribe audio from a file
+    ///
+    /// Converts speech to text using the loaded model.
+    /// Requires a Whisper-compatible model.
+    ///
+    /// # Arguments
+    ///
+    /// * `audio_path` - Path to audio file (WAV, MP3, etc.)
+    /// * `options` - Transcription options
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let result = model.transcribe("speech.wav", TranscribeOptions::default())?;
+    /// println!("Transcription: {}", result.text);
+    /// ```
+    pub fn transcribe(
+        &self,
+        audio_path: &str,
+        options: TranscribeOptions,
+    ) -> Result<TranscribeResponse> {
+        let audio_path_c = CString::new(audio_path)?;
+        let prompt_c = CString::new(options.initial_prompt.as_deref().unwrap_or(""))?;
+        let options_json = serde_json::to_string(&options)?;
+        let options_c = CString::new(options_json)?;
+
+        self.stop_flag.store(false, Ordering::SeqCst);
+
+        let mut response_buffer: Vec<u8> = vec![0u8; DEFAULT_BUFFER_SIZE];
+
+        let result = unsafe {
+            cactus_sys::cactus_transcribe(
+                self.handle.as_ptr(),
+                audio_path_c.as_ptr(),
+                prompt_c.as_ptr(),
+                response_buffer.as_mut_ptr() as *mut i8,
+                response_buffer.len(),
+                options_c.as_ptr(),
+                None,             // callback
+                std::ptr::null_mut(), // user_data
+                std::ptr::null(),  // pcm_buffer (not using raw PCM)
+                0,                 // pcm_buffer_size
+            )
+        };
+
+        if result < 0 {
+            return Err(Error::last_cactus_error()
+                .map(Error::Inference)
+                .unwrap_or_else(|| Error::Inference(format!("cactus_transcribe failed with code {}", result))));
+        }
+
+        let response_str = unsafe {
+            let c_str = CStr::from_ptr(response_buffer.as_ptr() as *const i8);
+            c_str.to_string_lossy().into_owned()
+        };
+
+        // Try to parse as JSON, otherwise return raw text
+        let response: TranscribeResponse = serde_json::from_str(&response_str)
+            .unwrap_or_else(|_| TranscribeResponse {
+                text: response_str,
+                language: String::new(),
+                duration: 0.0,
+                segments: Vec::new(),
+            });
+
+        Ok(response)
+    }
+
+    /// Transcribe audio with streaming callback
+    ///
+    /// The callback is called for each transcribed segment.
+    /// Return `true` to continue, `false` to stop.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// model.transcribe_streaming("speech.wav", options, |text, _| {
+    ///     print!("{}", text);
+    ///     std::io::stdout().flush().ok();
+    ///     true
+    /// })?;
+    /// ```
+    pub fn transcribe_streaming<F>(
+        &self,
+        audio_path: &str,
+        options: TranscribeOptions,
+        mut callback: F,
+    ) -> Result<TranscribeResponse>
+    where
+        F: FnMut(&str, u32) -> bool,
+    {
+        let audio_path_c = CString::new(audio_path)?;
+        let prompt_c = CString::new(options.initial_prompt.as_deref().unwrap_or(""))?;
+        let options_json = serde_json::to_string(&options)?;
+        let options_c = CString::new(options_json)?;
+
+        self.stop_flag.store(false, Ordering::SeqCst);
+
+        // Create callback wrapper
+        struct CallbackData<'a, F: FnMut(&str, u32) -> bool> {
+            callback: &'a mut F,
+            should_stop: bool,
+        }
+
+        let mut callback_data = CallbackData {
+            callback: &mut callback,
+            should_stop: false,
+        };
+
+        unsafe extern "C" fn trampoline<F: FnMut(&str, u32) -> bool>(
+            token: *const std::ffi::c_char,
+            token_id: u32,
+            user_data: *mut std::ffi::c_void,
+        ) {
+            if token.is_null() || user_data.is_null() {
+                return;
+            }
+            let data = &mut *(user_data as *mut CallbackData<F>);
+            let token_str = CStr::from_ptr(token).to_string_lossy();
+            let should_continue = (data.callback)(&token_str, token_id);
+            if !should_continue {
+                data.should_stop = true;
+            }
+        }
+
+        let mut response_buffer: Vec<u8> = vec![0u8; DEFAULT_BUFFER_SIZE];
+
+        let result = unsafe {
+            cactus_sys::cactus_transcribe(
+                self.handle.as_ptr(),
+                audio_path_c.as_ptr(),
+                prompt_c.as_ptr(),
+                response_buffer.as_mut_ptr() as *mut i8,
+                response_buffer.len(),
+                options_c.as_ptr(),
+                Some(trampoline::<F>),
+                &mut callback_data as *mut CallbackData<F> as *mut std::ffi::c_void,
+                std::ptr::null(),
+                0,
+            )
+        };
+
+        if result < 0 && !callback_data.should_stop {
+            return Err(Error::last_cactus_error()
+                .map(Error::Inference)
+                .unwrap_or_else(|| Error::Inference(format!("cactus_transcribe failed with code {}", result))));
+        }
+
+        let response_str = unsafe {
+            let c_str = CStr::from_ptr(response_buffer.as_ptr() as *const i8);
+            c_str.to_string_lossy().into_owned()
+        };
+
+        let response: TranscribeResponse = serde_json::from_str(&response_str)
+            .unwrap_or_else(|_| TranscribeResponse {
+                text: response_str,
+                language: String::new(),
+                duration: 0.0,
+                segments: Vec::new(),
+            });
+
+        Ok(response)
+    }
+
+    /// Transcribe raw PCM audio data
+    ///
+    /// # Arguments
+    ///
+    /// * `pcm_data` - Raw PCM audio data (16-bit, mono, 16kHz)
+    /// * `options` - Transcription options
+    pub fn transcribe_pcm(
+        &self,
+        pcm_data: &[u8],
+        options: TranscribeOptions,
+    ) -> Result<TranscribeResponse> {
+        let prompt_c = CString::new(options.initial_prompt.as_deref().unwrap_or(""))?;
+        let options_json = serde_json::to_string(&options)?;
+        let options_c = CString::new(options_json)?;
+
+        self.stop_flag.store(false, Ordering::SeqCst);
+
+        let mut response_buffer: Vec<u8> = vec![0u8; DEFAULT_BUFFER_SIZE];
+
+        let result = unsafe {
+            cactus_sys::cactus_transcribe(
+                self.handle.as_ptr(),
+                std::ptr::null(),  // no file path
+                prompt_c.as_ptr(),
+                response_buffer.as_mut_ptr() as *mut i8,
+                response_buffer.len(),
+                options_c.as_ptr(),
+                None,
+                std::ptr::null_mut(),
+                pcm_data.as_ptr(),
+                pcm_data.len(),
+            )
+        };
+
+        if result < 0 {
+            return Err(Error::last_cactus_error()
+                .map(Error::Inference)
+                .unwrap_or_else(|| Error::Inference(format!("cactus_transcribe failed with code {}", result))));
+        }
+
+        let response_str = unsafe {
+            let c_str = CStr::from_ptr(response_buffer.as_ptr() as *const i8);
+            c_str.to_string_lossy().into_owned()
+        };
+
+        let response: TranscribeResponse = serde_json::from_str(&response_str)
+            .unwrap_or_else(|_| TranscribeResponse {
+                text: response_str,
+                language: String::new(),
+                duration: 0.0,
+                segments: Vec::new(),
+            });
+
+        Ok(response)
     }
 
     /// Stop any ongoing generation

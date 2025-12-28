@@ -249,6 +249,94 @@ pub struct SearchResult {
     pub score: f32,
 }
 
+/// Options for audio transcription
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscribeOptions {
+    /// Language code (e.g., "en", "de", "tr")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+
+    /// Whether to include timestamps in output
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timestamps: Option<bool>,
+
+    /// Maximum duration to transcribe (seconds)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_duration: Option<f32>,
+
+    /// Temperature for sampling (0.0 = deterministic)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+
+    /// Initial prompt to guide transcription style
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initial_prompt: Option<String>,
+}
+
+impl Default for TranscribeOptions {
+    fn default() -> Self {
+        Self {
+            language: None, // auto-detect
+            timestamps: Some(false),
+            max_duration: None,
+            temperature: Some(0.0),
+            initial_prompt: None,
+        }
+    }
+}
+
+impl TranscribeOptions {
+    /// Create options for a specific language
+    pub fn with_language(language: impl Into<String>) -> Self {
+        Self {
+            language: Some(language.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Enable timestamp output
+    pub fn with_timestamps(mut self) -> Self {
+        self.timestamps = Some(true);
+        self
+    }
+
+    /// Set initial prompt for context
+    pub fn with_prompt(mut self, prompt: impl Into<String>) -> Self {
+        self.initial_prompt = Some(prompt.into());
+        self
+    }
+}
+
+/// Response from audio transcription
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscribeResponse {
+    /// Transcribed text
+    pub text: String,
+
+    /// Detected or specified language
+    #[serde(default)]
+    pub language: String,
+
+    /// Duration of audio processed (seconds)
+    #[serde(default)]
+    pub duration: f32,
+
+    /// Segments with timestamps (if requested)
+    #[serde(default)]
+    pub segments: Vec<TranscribeSegment>,
+}
+
+/// A segment of transcribed audio with timing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscribeSegment {
+    /// Start time (seconds)
+    pub start: f32,
+    /// End time (seconds)
+    pub end: f32,
+    /// Transcribed text for this segment
+    pub text: String,
+}
+
 /// Model configuration
 #[derive(Debug, Clone)]
 pub struct ModelConfig {
