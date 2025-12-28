@@ -21,3 +21,6 @@ Cargo.lock
 # Cactus build
 /cactus/build/
 /vendor/cactus/build/
+
+# Model files (too large for git)
+models/
