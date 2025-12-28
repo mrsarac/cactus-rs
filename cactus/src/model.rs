@@ -163,8 +163,8 @@ impl Model {
 
         // Try to parse as JSON, otherwise return raw content
         let response: GenerateResponse =
-            serde_json::from_str(&response_str).unwrap_or_else(|_| GenerateResponse {
-                content: response_str,
+            serde_json::from_str(&response_str).unwrap_or(GenerateResponse {
+                content: response_str.clone(),
                 prompt_tokens: 0,
                 completion_tokens: 0,
                 time_to_first_token_ms: 0.0,
@@ -270,14 +270,15 @@ impl Model {
             c_str.to_string_lossy().into_owned()
         };
 
+        let stopped = callback_data.should_stop;
         let response: GenerateResponse =
-            serde_json::from_str(&response_str).unwrap_or_else(|_| GenerateResponse {
-                content: response_str,
+            serde_json::from_str(&response_str).unwrap_or(GenerateResponse {
+                content: response_str.clone(),
                 prompt_tokens: 0,
                 completion_tokens: 0,
                 time_to_first_token_ms: 0.0,
                 tokens_per_second: 0.0,
-                stopped: callback_data.should_stop,
+                stopped,
             });
 
         Ok(response)
