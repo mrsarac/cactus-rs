@@ -4,6 +4,9 @@ Safe, idiomatic Rust bindings for [Cactus](https://github.com/cactus-compute/cac
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
+[![Cactus](https://img.shields.io/badge/Cactus-v1.5-green.svg)](https://github.com/cactus-compute/cactus)
+
+> **Compatibility:** cactus-rs v0.2.0 requires Cactus v1.5 or later for full feature support (including STT streaming).
 
 ## Features
 
@@ -15,6 +18,7 @@ Safe, idiomatic Rust bindings for [Cactus](https://github.com/cactus-compute/cac
 | 🧮 **Embeddings** | Text, image, and audio embeddings |
 | 🔍 **Vector Search** | Built-in semantic search index |
 | 🎤 **Transcription** | Whisper-compatible speech-to-text |
+| 🎙️ **STT Streaming** | Real-time speech-to-text with StreamTranscriber (Cactus v1.5+) |
 | ⚡ **GPU Accelerated** | Metal (macOS/iOS), Vulkan (Android) |
 
 ## Installation
@@ -223,7 +227,7 @@ for seg in &result.segments {
     println!("[{:.2}s - {:.2}s] {}", seg.start, seg.end, seg.text);
 }
 
-// Streaming transcription
+// Streaming transcription (file-based)
 model.transcribe_streaming("speech.wav", opts, |text, _| {
     print!("{}", text);
     io::stdout().flush().ok();
@@ -233,6 +237,48 @@ model.transcribe_streaming("speech.wav", opts, |text, _| {
 // From raw PCM data (16-bit, mono, 16kHz)
 let pcm_data: Vec<u8> = capture_microphone();
 let result = model.transcribe_pcm(&pcm_data, opts)?;
+```
+
+### Real-Time Speech-to-Text Streaming (Cactus v1.5+)
+
+For continuous audio input (e.g., microphone capture), use the `StreamTranscriber` API:
+
+```rust
+use cactus::{Model, StreamTranscriberBuilder};
+use std::io::{self, Write};
+
+let model = Model::from_gguf("whisper-model")?;
+
+// Create a stream transcriber with builder pattern
+let transcriber = StreamTranscriberBuilder::new(&model)
+    .with_language("en")           // Optional: force language
+    .with_vad(true)                // Voice Activity Detection
+    .with_realtime_factor(1.0)     // Process at 1x realtime
+    .build()?;
+
+// Feed audio chunks as they arrive (16-bit PCM, mono, 16kHz)
+loop {
+    let audio_chunk: Vec<i16> = capture_microphone_chunk();
+
+    // Process chunk and get partial results
+    if let Some(partial) = transcriber.feed(&audio_chunk)? {
+        print!("{}", partial.text);
+        io::stdout().flush().ok();
+    }
+
+    // Check for finalized segments
+    for segment in transcriber.take_segments() {
+        println!("\n[Final] {}", segment.text);
+    }
+
+    if should_stop() {
+        break;
+    }
+}
+
+// Flush remaining audio
+let final_result = transcriber.finalize()?;
+println!("\nFinal: {}", final_result.text);
 ```
 
 ### Model Control
