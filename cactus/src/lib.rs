@@ -34,7 +34,7 @@
 //! }
 //! ```
 //!
-//! ## Streaming
+//! ## Streaming Text Generation
 //!
 //! ```rust,ignore
 //! use cactus::{Model, Message, GenerateOptions};
@@ -42,20 +42,44 @@
 //! let model = Model::from_gguf("model.gguf")?;
 //! let messages = vec![Message::user("Tell me a story")];
 //!
-//! model.complete_streaming(&messages, GenerateOptions::default(), |token| {
+//! model.complete_streaming(&messages, GenerateOptions::default(), |token, _| {
 //!     print!("{}", token);
 //!     true // continue generation
 //! })?;
+//! ```
+//!
+//! ## Streaming Audio Transcription
+//!
+//! For real-time speech-to-text with continuous audio input:
+//!
+//! ```rust,ignore
+//! use cactus::{Model, StreamTranscriber, StreamTranscribeOptions};
+//!
+//! let model = Model::from_gguf("whisper-base.gguf")?;
+//! let mut transcriber = StreamTranscriber::new(&model)?;
+//!
+//! // Feed audio chunks as they arrive (16-bit, mono, 16kHz PCM)
+//! transcriber.insert(&audio_chunk)?;
+//!
+//! // Get intermediate results
+//! let partial = transcriber.process(StreamTranscribeOptions::default())?;
+//! println!("Heard: {}", partial.text);
+//!
+//! // Finalize when done
+//! let final_result = transcriber.finalize()?;
+//! println!("Final: {}", final_result.text);
 //! ```
 
 mod error;
 mod index;
 mod model;
+mod stream_transcriber;
 mod types;
 
 pub use error::{Error, Result};
 pub use index::VectorIndex;
 pub use model::Model;
+pub use stream_transcriber::{StreamTranscribeOptions, StreamTranscriber, StreamTranscriberBuilder};
 pub use types::*;
 
 /// Library version

@@ -663,6 +663,16 @@ impl Model {
     pub fn config(&self) -> &ModelConfig {
         &self.config
     }
+
+    /// Get the raw model handle (for internal use)
+    ///
+    /// # Safety
+    ///
+    /// This method is safe to call, but the returned pointer should only
+    /// be used with Cactus FFI functions that expect a valid model handle.
+    pub(crate) fn handle(&self) -> *mut std::ffi::c_void {
+        self.handle.as_ptr()
+    }
 }
 
 impl Drop for Model {
