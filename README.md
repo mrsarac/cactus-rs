@@ -23,11 +23,16 @@ Safe, idiomatic Rust bindings for [Cactus](https://github.com/cactus-compute/cac
 
 ## Installation
 
+> **Note:** This crate is distributed via GitHub (not crates.io) because it includes the Cactus C++ engine as a git submodule and requires building from source.
+
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 cactus = { git = "https://github.com/mrsarac/cactus-rs" }
+
+# Pin to a specific version
+cactus = { git = "https://github.com/mrsarac/cactus-rs", tag = "v0.2.0" }
 ```
 
 ### Prerequisites
