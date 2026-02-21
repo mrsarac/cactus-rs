@@ -79,7 +79,9 @@ mod types;
 pub use error::{Error, Result};
 pub use index::VectorIndex;
 pub use model::Model;
-pub use stream_transcriber::{StreamTranscribeOptions, StreamTranscriber, StreamTranscriberBuilder};
+pub use stream_transcriber::{
+    StreamTranscribeOptions, StreamTranscriber, StreamTranscriberBuilder,
+};
 pub use types::*;
 
 /// Library version
