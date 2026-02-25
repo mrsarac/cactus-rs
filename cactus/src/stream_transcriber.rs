@@ -685,8 +685,8 @@ mod tests {
     fn test_transcribe_response_fallback_parsing() {
         // When JSON parsing fails, the raw string becomes the text
         let raw_text = "Just plain text, not JSON";
-        let response: TranscribeResponse = serde_json::from_str(raw_text)
-            .unwrap_or_else(|_| TranscribeResponse {
+        let response: TranscribeResponse =
+            serde_json::from_str(raw_text).unwrap_or_else(|_| TranscribeResponse {
                 text: raw_text.to_string(),
                 language: String::new(),
                 duration: 0.0,
@@ -803,11 +803,15 @@ mod integration_tests {
 
         // Insert 1 second of silence (valid PCM data)
         let silence: Vec<u8> = vec![0u8; 32000];
-        transcriber.insert(&silence).expect("Failed to insert PCM data");
+        transcriber
+            .insert(&silence)
+            .expect("Failed to insert PCM data");
 
         // Insert more data
         let more_silence: Vec<u8> = vec![0u8; 16000];
-        transcriber.insert(&more_silence).expect("Failed to insert more data");
+        transcriber
+            .insert(&more_silence)
+            .expect("Failed to insert more data");
     }
 
     /// Test full lifecycle: init -> insert -> process -> finalize -> drop
@@ -829,7 +833,9 @@ mod integration_tests {
         println!("Partial result: '{}'", partial.text);
 
         // 4. Insert more data
-        transcriber.insert(&pcm_data).expect("Failed to insert more");
+        transcriber
+            .insert(&pcm_data)
+            .expect("Failed to insert more");
 
         // 5. Finalize and get final result
         let final_result = transcriber.finalize().expect("Failed to finalize");
@@ -863,7 +869,9 @@ mod integration_tests {
 
         // Create i16 samples (16000 samples = 1 second at 16kHz)
         let samples: Vec<i16> = vec![0i16; 16000];
-        transcriber.insert_samples(&samples).expect("Failed to insert samples");
+        transcriber
+            .insert_samples(&samples)
+            .expect("Failed to insert samples");
     }
 
     /// Test insert_f32 convenience method
@@ -876,6 +884,8 @@ mod integration_tests {
 
         // Create f32 samples in [-1.0, 1.0] range
         let samples: Vec<f32> = vec![0.0f32; 16000];
-        transcriber.insert_f32(&samples).expect("Failed to insert f32 samples");
+        transcriber
+            .insert_f32(&samples)
+            .expect("Failed to insert f32 samples");
     }
 }
