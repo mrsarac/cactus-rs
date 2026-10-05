@@ -1,6 +1,6 @@
-# 🌵 cactus-rs
+# cactus-rs
 
-Safe, idiomatic Rust bindings for [Cactus](https://github.com/cactus-compute/cactus) — a cross-platform, energy-efficient AI inference engine optimized for mobile and edge devices.
+cactus-rs provides unofficial Rust bindings for the [Cactus](https://github.com/cactus-compute/cactus) engine. It is distributed from this git repository rather than crates.io, and cactus-rs v0.2.0 requires Cactus v1.5 or later for full feature support.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
@@ -482,3 +482,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 <p align="center">
   Built with 🌵 by <a href="https://neurabytelabs.com">NeuraByte Labs</a>
 </p>
+
+Status / limits: Automated tests cover Rust types, errors, stream-transcriber helpers, and binding compilation; ignored stream-transcriber integration tests require a real Whisper model. README platform support lists macOS as tested, Linux x86_64 as supported, and iOS, Android, and Windows as planned.
