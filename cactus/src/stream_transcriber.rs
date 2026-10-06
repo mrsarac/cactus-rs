@@ -244,7 +244,7 @@ impl<'a> StreamTranscriber<'a> {
         let bytes = unsafe {
             std::slice::from_raw_parts(
                 samples.as_ptr() as *const u8,
-                samples.len() * std::mem::size_of::<i16>(),
+                std::mem::size_of_val(samples),
             )
         };
         self.insert(bytes)
@@ -546,8 +546,8 @@ mod tests {
     #[test]
     fn test_buffer_size_is_reasonable() {
         // Buffer should be at least 1KB and at most 1MB for practical use
-        assert!(DEFAULT_BUFFER_SIZE >= 1024);
-        assert!(DEFAULT_BUFFER_SIZE <= 1024 * 1024);
+        const { assert!(DEFAULT_BUFFER_SIZE >= 1024) };
+        const { assert!(DEFAULT_BUFFER_SIZE <= 1024 * 1024) };
     }
 
     // ==================== PCM Data Format Tests ====================
